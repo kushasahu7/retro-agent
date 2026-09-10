@@ -1,0 +1,14 @@
+# NEVER commit anything derived from local sessions.
+archive/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+bundle/
+bundle-*/
+*.jsonl
+*.jsonl.gz
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
