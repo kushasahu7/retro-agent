@@ -66,6 +66,43 @@ def codex_session(path, base, cmds):
     with open(path, "w") as fh:
         for r in recs: fh.write(json.dumps(r) + "\n")
 
+def fake_history(path, days=365, seed=7):
+    """A year of synthetic prompt history so `retro heatmap` has something to draw
+    without touching real data. Bursty, weekday-weighted, with quiet stretches."""
+    import random
+    rnd = random.Random(seed)
+    today = dt.date.today()
+    out = []
+    streak = 0
+    for i in range(days):
+        d = today - dt.timedelta(days=days - 1 - i)
+        weekday = d.weekday()
+        base = 0.62 if weekday < 5 else 0.18      # weekends are quieter, not empty
+        if streak > 0:                            # projects arrive in bursts
+            base += 0.25
+            streak -= 1
+        elif rnd.random() < 0.06:
+            streak = rnd.randint(3, 12)
+        if rnd.random() > base:
+            continue
+        n = max(1, int(rnd.lognormvariate(2.1, 0.8)))
+        for k in range(n):
+            when = dt.datetime.combine(d, dt.time(9 + rnd.randint(0, 11),
+                                                  rnd.randint(0, 59)))
+            out.append({"display": rnd.choice([
+                "fix the failing test", "add retry logic", "why is this slow",
+                "refactor the worker", "write a migration", "explain this stack trace",
+                "add pagination", "tidy up the imports", "make it responsive"]),
+                "pastedContents": {}, "project": "/home/dev/acme-api",
+                "sessionId": f"demo-{d.isoformat()}-{k}",
+                "timestamp": int(when.timestamp() * 1000)})
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        for r in sorted(out, key=lambda x: x["timestamp"]):
+            fh.write(json.dumps(r) + "\n")
+    return len(out)
+
+
 def build(root):
     shutil.rmtree(root, ignore_errors=True)
     cp = os.path.join(root, "projects", "-home-dev-acme-api")
@@ -120,6 +157,8 @@ def build(root):
         ("apply_patch <<'EOF'\n*** Update File: worker/ingest.py\nEOF", 0),
         ("python -m pytest tests/ -q", 0),
     ])
+    n = fake_history(os.path.join(root, "claude", "history.jsonl"))
+    print(f"  synthetic prompt history: {n} prompts over a year")
     return root
 
 if __name__ == "__main__":

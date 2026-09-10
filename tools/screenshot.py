@@ -123,6 +123,7 @@ if __name__ == "__main__":
         ("parity", "retro parity", None),
         ("sanitize", f"retro sanitize 'hero section' --out {os.path.join(demo,'bundle')}", None),
         ("consent", "retro consent", 22),
+        ("heatmap-term", "retro heatmap --no-color", None),
         ("forget", "retro forget --all", None),
     ]
     for name, cmd, cap in shots:
@@ -132,6 +133,11 @@ if __name__ == "__main__":
         w, h, lc, need = render(lines, shown, os.path.join(docs, f"{name}.svg"))
         print(f"docs/{name}.svg  {w}x{h}  {len(lines)} lines  "
               f"widest {lc} chars -> {need:.0f}px fits in {w}px  OK")
+    # the shareable SVG heatmap, drawn from the synthetic corpus
+    subprocess.run(f"python3 retro.py heatmap --svg {os.path.join(docs,'heatmap.svg')} "
+                   f"--no-color", shell=True, env=env, cwd=repo, capture_output=True)
+    print("docs/heatmap.svg  (synthetic data)")
+
     # archive shot last, rebuilding from scratch so the numbers look like a first run
     lines = [f"$ retro archive"] + capture("python3 retro.py archive", env, repo, None, demo)
     w, h, lc, need = render(lines, "retro archive", os.path.join(docs, "archive.svg"))

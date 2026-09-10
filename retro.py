@@ -935,6 +935,165 @@ def cmd_encrypt(args):
         print("keep the passphrase safe: without it the archive is unrecoverable.")
         print("set RETRO_PASSPHRASE for scan/friction to read it back.")
 
+
+# ------------------------------------------------------------------ heatmap
+HEAT_BLOCKS = [" ", "\u2591", "\u2592", "\u2593", "\u2588"]
+HEAT_ANSI = ["\033[38;5;236m", "\033[38;5;22m", "\033[38;5;28m",
+             "\033[38;5;34m", "\033[38;5;40m"]
+RESET = "\033[0m"
+
+def heat_daily(con, metric):
+    """Return {date -> value} plus {date -> friction score}."""
+    vals = Counter(); fric = Counter()
+    if metric == "prompts":
+        for (d,) in con.execute("SELECT substr(iso,1,10) FROM prompts WHERE iso IS NOT NULL"):
+            if d: vals[d] += 1
+    con.row_factory = sqlite3.Row
+    for r in con.execute("SELECT * FROM sessions WHERE start IS NOT NULL"):
+        d = (r["start"] or "")[:10]
+        if not d: continue
+        if metric == "sessions": vals[d] += 1
+        elif metric == "edits": vals[d] += r["edits"] or 0
+        elif metric == "tokens": vals[d] += r["out_tok"] or 0
+        elif metric == "tools": vals[d] += r["tools"] or 0
+        churn = sum(n for _, n in json.loads(r["churn"] or "[]"))
+        fric[d] += (r["errors"] or 0) * 2 + (r["exact_retries"] or 0) + churn
+    con.row_factory = None
+    return vals, fric
+
+def heat_levels(vals):
+    """Quartile buckets, so one huge day cannot flatten the rest."""
+    pos = sorted(v for v in vals.values() if v > 0)
+    if not pos: return lambda v: 0
+    qs = [pos[int(len(pos) * f)] for f in (0.25, 0.5, 0.75)]
+    qs = [max(1, q) for q in qs]
+    def lvl(v):
+        if v <= 0: return 0
+        if v <= qs[0]: return 1
+        if v <= qs[1]: return 2
+        if v <= qs[2]: return 3
+        return 4
+    return lvl
+
+def heat_grid(vals, days):
+    end = dt.date.today()
+    start = end - dt.timedelta(days=days - 1)
+    start -= dt.timedelta(days=start.weekday())        # align to Monday
+    cols = []
+    d = start
+    while d <= end:
+        week = []
+        for _ in range(7):
+            week.append((d, vals.get(d.isoformat(), 0)) if d <= end else (None, 0))
+            d += dt.timedelta(days=1)
+        cols.append(week)
+    return cols, start, end
+
+def cmd_heatmap(args):
+    con = sqlite3.connect(DB)
+    try:
+        vals, fric = heat_daily(con, args.metric)
+    except sqlite3.OperationalError:
+        print("run `retro scan` first"); return
+    if not vals:
+        print(f"no data for metric '{args.metric}'; try --metric prompts"); return
+    cols, start, end = heat_grid(vals, args.days)
+    lvl = heat_levels(vals)
+    colour = sys.stdout.isatty() and not args.no_color
+
+    # month ruler
+    ruler = [" "] * (len(cols) * 2)
+    last = None
+    for i, week in enumerate(cols):
+        first = next((d for d, _ in week if d), None)
+        if first and first.month != last:
+            lab = first.strftime("%b")
+            if i * 2 + len(lab) <= len(ruler):
+                for j, ch in enumerate(lab): ruler[i * 2 + j] = ch
+            last = first.month
+    print(f"\n     {''.join(ruler)}")
+    names = ["Mon", "   ", "Wed", "   ", "Fri", "   ", "Sun"]
+    for row in range(7):
+        line = []
+        for week in cols:
+            d, v = week[row]
+            if d is None:
+                line.append("  "); continue
+            L = lvl(v)
+            ch = HEAT_BLOCKS[L] * 2
+            line.append(f"{HEAT_ANSI[L]}{ch}{RESET}" if colour else ch)
+        print(f"{names[row]}  {''.join(line)}")
+
+    active = [d for d, v in vals.items() if v > 0 and start.isoformat() <= d <= end.isoformat()]
+    total = sum(v for d, v in vals.items() if start.isoformat() <= d <= end.isoformat())
+    # longest run of consecutive active days
+    ds = sorted(dt.date.fromisoformat(d) for d in active)
+    best = run = 1 if ds else 0
+    for a, b in zip(ds, ds[1:]):
+        run = run + 1 if (b - a).days == 1 else 1
+        best = max(best, run)
+    dow = Counter(dt.date.fromisoformat(d).strftime("%a") for d in active)
+    order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    busiest = max(((d, v) for d, v in vals.items() if d in active), key=lambda x: x[1],
+                  default=("-", 0))
+
+    print(f"\n  metric: {args.metric}  |  window: {start} to {end} ({args.days}d)")
+    print(f"  {total:,} total  |  {len(active)} active days  |  longest streak {best}d"
+          f"  |  busiest {busiest[0]} ({busiest[1]:,})")
+    print("  by weekday: " + "  ".join(f"{k} {dow.get(k,0)}" for k in order))
+    quiet = [k for k in order if dow.get(k, 0) == 0]
+    if quiet: print(f"  never active on: {', '.join(quiet)}")
+    top = [(d, s) for d, s in fric.items() if s and d in active]
+    if top:
+        top.sort(key=lambda x: -x[1])
+        print("  highest-friction days: " +
+              ", ".join(f"{d} ({s})" for d, s in top[:3]))
+    print("\n  NOTE: volume is not productivity. A dense grid can mean a lot of rework;")
+    print("  cross-read it against `retro friction` before drawing conclusions.\n")
+
+    if args.svg:
+        heat_svg(cols, lvl, args, start, end, total, len(active), best)
+        print(f"  wrote {args.svg}\n")
+
+def heat_svg(cols, lvl, args, start, end, total, active, streak):
+    # TOP must clear the title (y=22) and subtitle (y=38) plus the month
+    # ruler drawn at TOP-4, or the labels collide.
+    CELL, GAP, PAD, TOP = 11, 3, 16, 62
+    pal = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"]
+    w = PAD * 2 + 30 + len(cols) * (CELL + GAP) + 46   # room for the legend
+    h = TOP + 7 * (CELL + GAP) + 48
+    o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+         f'viewBox="0 0 {w} {h}" font-family="monospace" font-size="10">',
+         f'<rect width="{w}" height="{h}" rx="8" fill="#0d1117"/>',
+         f'<text x="{PAD}" y="22" fill="#c9d1d9" font-size="13">'
+         f'{total:,} {args.metric} across {active} active days</text>',
+         f'<text x="{PAD}" y="38" fill="#6e7681">{start} to {end} '
+         f'&#183; longest streak {streak}d</text>']
+    last = None
+    for i, week in enumerate(cols):
+        first = next((d for d, _ in week if d), None)
+        x = PAD + 30 + i * (CELL + GAP)
+        if first and first.month != last:
+            o.append(f'<text x="{x}" y="{TOP-4}" fill="#6e7681">'
+                     f'{first.strftime("%b")}</text>')
+            last = first.month
+        for r, (d, v) in enumerate(week):
+            if d is None: continue
+            y = TOP + r * (CELL + GAP)
+            o.append(f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" rx="2" '
+                     f'fill="{pal[lvl(v)]}"><title>{d}: {v:,} {args.metric}</title></rect>')
+    for r, nm in ((0, "Mon"), (2, "Wed"), (4, "Fri")):
+        o.append(f'<text x="{PAD}" y="{TOP + r*(CELL+GAP) + 9}" fill="#6e7681">{nm}</text>')
+    lx = w - PAD - 5 * (CELL + GAP) - 40
+    ly = TOP + 7 * (CELL + GAP) + 18
+    o.append(f'<text x="{lx-28}" y="{ly+9}" fill="#6e7681">less</text>')
+    for i in range(5):
+        o.append(f'<rect x="{lx + i*(CELL+GAP)}" y="{ly}" width="{CELL}" height="{CELL}" '
+                 f'rx="2" fill="{pal[i]}"/>')
+    o.append(f'<text x="{lx + 5*(CELL+GAP) + 4}" y="{ly+9}" fill="#6e7681">more</text>')
+    o.append("</svg>")
+    open(args.svg, "w").write("\n".join(o))
+
 def main():
     p = argparse.ArgumentParser(prog="retro")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -950,6 +1109,13 @@ def main():
     ih.set_defaults(fn=cmd_install_hook)
     sub.add_parser("status").set_defaults(fn=cmd_status)
     sub.add_parser("parity").set_defaults(fn=cmd_parity)
+    hm = sub.add_parser("heatmap")
+    hm.add_argument("--metric", default="prompts",
+                    choices=["prompts", "sessions", "edits", "tools", "tokens"])
+    hm.add_argument("--days", type=int, default=365)
+    hm.add_argument("--svg", default=None, help="also write a shareable SVG")
+    hm.add_argument("--no-color", action="store_true")
+    hm.set_defaults(fn=cmd_heatmap)
     cs = sub.add_parser("consent")
     cs.add_argument("--accept", action="store_true"); cs.add_argument("--revoke", action="store_true")
     cs.set_defaults(fn=cmd_consent)

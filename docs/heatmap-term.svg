@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1368" height="421" viewBox="0 0 1368 421" font-family="monospace" font-size="13.0">
+<rect width="1368" height="421" rx="8" fill="#0d1117"/>
+<rect width="1368" height="30" rx="8" fill="#161b22"/>
+<rect y="22" width="1368" height="8" fill="#161b22"/>
+<circle cx="18" cy="15.0" r="5.5" fill="#ff5f56"/>
+<circle cx="35" cy="15.0" r="5.5" fill="#ffbd2e"/>
+<circle cx="52" cy="15.0" r="5.5" fill="#27c93f"/>
+<text x="684.0" y="19.5" fill="#6e7681" text-anchor="middle" font-size="11.5">retro heatmap --no-color</text>
+<text x="18.0" y="48" fill="#3fb950" xml:space="preserve" textLength="9.0" lengthAdjust="spacingAndGlyphs">$</text>
+<text x="36.0" y="48" fill="#ffffff" xml:space="preserve" textLength="216.0" lengthAdjust="spacingAndGlyphs">retro heatmap --no-color</text>
+<text x="18" y="86.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">     Sep     Oct     Nov     Dec       Jan     Feb     Mar       Apr     May     Jun       Jul     Aug         </text>
+<text x="18" y="105.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">Mon        ░░  ░░▓▓  ▓▓▒▒▓▓▓▓░░▒▒░░▒▒▓▓    ░░  ▓▓░░      ▓▓▒▒  ▓▓░░  ▒▒▓▓    ▓▓  ░░██  ██░░  ▒▒    ▒▒  ░░  ▓▓░░</text>
+<text x="18" y="124.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">         ▓▓██  ▒▒██  ▒▒██  ████  ██░░▒▒██░░░░  ██▒▒██░░████░░    ██  ▒▒░░██▓▓  ░░▒▒░░  ▒▒  ██▒▒▒▒██  ██  ░░▒▒██</text>
+<text x="18" y="143.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">Wed    ░░  ░░▒▒░░██  ██  ▒▒  ██░░▒▒░░██▓▓▓▓  ▓▓▓▓▓▓░░▓▓██▓▓    ░░▓▓  ░░░░  ▓▓░░  ░░▒▒▓▓██░░  ▒▒▒▒▓▓░░▓▓  ██▒▒░░</text>
+<text x="18" y="162.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">     ▓▓░░▒▒▓▓░░████▒▒▒▒  ░░░░    ▒▒██▒▒▓▓░░▓▓▒▒░░  ██    ████    ░░  ▓▓  ▒▒▒▒  ▒▒  ▓▓██░░██  ▓▓░░░░░░▓▓  ▒▒▒▒░░</text>
+<text x="18" y="181.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">Fri  ░░  ▓▓▓▓▓▓██░░▒▒████▒▒▓▓██▒▒██  ▓▓▓▓██▓▓  ▓▓▓▓  ░░  ████▒▒  ░░░░▒▒░░▓▓░░▒▒▓▓    ▓▓▓▓▒▒██  ▓▓    ▒▒  ▓▓██  </text>
+<text x="18" y="200.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">             ░░██        ▓▓      ▒▒  ░░  ▒▒          ▓▓▓▓        ██▒▒    ▒▒    ▓▓    ▒▒▓▓        ░░  ▒▒        </text>
+<text x="18" y="219.0" fill="#c9d1d9" xml:space="preserve" textLength="999.0" lengthAdjust="spacingAndGlyphs">Sun            ▒▒      ██▓▓      ▒▒  ▓▓  ▒▒  ░░              ▓▓  ██▓▓      ▒▒                  ░░▓▓░░▓▓  ▒▒    </text>
+<text x="18" y="257.0" fill="#c9d1d9" xml:space="preserve" textLength="549.0" lengthAdjust="spacingAndGlyphs">  metric: prompts  |  window: 2025-09-08 to 2026-09-10 (365d)</text>
+<text x="18" y="276.0" fill="#c9d1d9" xml:space="preserve" textLength="756.0" lengthAdjust="spacingAndGlyphs">  2,376 total  |  220 active days  |  longest streak 12d  |  busiest 2026-03-04 (71)</text>
+<text x="18" y="295.0" fill="#c9d1d9" xml:space="preserve" textLength="612.0" lengthAdjust="spacingAndGlyphs">  by weekday: Mon 31  Tue 38  Wed 40  Thu 39  Fri 40  Sat 16  Sun 16</text>
+<text x="18" y="314.0" fill="#c9d1d9" xml:space="preserve" textLength="360.0" lengthAdjust="spacingAndGlyphs">  highest-friction days: 2026-09-02 (58)</text>
+<text x="18" y="352.0" fill="#c9d1d9" xml:space="preserve" textLength="666.0" lengthAdjust="spacingAndGlyphs">  NOTE: volume is not productivity. A dense grid can mean a lot of rework;</text>
+<text x="18" y="371.0" fill="#c9d1d9" xml:space="preserve" textLength="612.0" lengthAdjust="spacingAndGlyphs">  cross-read it against `retro friction` before drawing conclusions.</text>
+</svg>

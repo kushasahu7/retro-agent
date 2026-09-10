@@ -13,6 +13,7 @@ retro archive    # checkpoint every session before the agent deletes it
 retro scan       # parse archive + live sessions into SQLite
 retro friction   # rework scorecard
 retro parity     # what each adapter can and cannot see
+retro heatmap    # activity grid over the last year (--svg to export)
 retro sanitize   # redacted, shareable bundle of one session
 retro status     # what is held, and what survives only here
 retro encrypt    # encrypt the archive at rest (--decrypt to reverse)
@@ -160,6 +161,9 @@ Honest list. Several of these are load-bearing.
 - **`exact retries` overcounts.** Legitimately repeated idempotent commands
   (`git status`, re-reading a file) count as retries. Needs an idempotent-command
   whitelist.
+- **The heatmap inherits each adapter's date coverage.** Cursor supplies a usable
+  timestamp for only ~9% of sessions, so `--metric sessions` under-reports there.
+  `--metric prompts` is Claude Code only, since it reads `history.jsonl`.
 - **`consecutive user turns` is noise** and is reported but deliberately not scored.
   Mid-turn messages are indistinguishable from correcting a drifting agent.
 - **Edit detection for shell-driven agents is heuristic.** Codex edits are shell
@@ -221,6 +225,33 @@ ln -s "$PWD/retro" /usr/local/bin/retro
 ```
 
 ![retro archive](docs/archive.svg)
+
+### Activity heatmap
+
+```bash
+./retro heatmap                                 # in the terminal
+./retro heatmap --metric edits --days 90
+./retro heatmap --svg heatmap.svg               # shareable image
+```
+
+![retro heatmap](docs/heatmap-term.svg)
+
+`--metric` takes `prompts` (default), `sessions`, `edits`, `tools` or `tokens`. Prompt
+history usually reaches back furthest, because `~/.claude/history.jsonl` survives the
+transcript cleanup by months.
+
+The `--svg` export is a standalone image with per-day tooltips:
+
+![heatmap svg](docs/heatmap.svg)
+
+Levels are **quartiles of your own active days**, not absolute counts, so one enormous
+day cannot flatten the rest of the grid.
+
+The terminal summary also prints the highest-friction days alongside the busiest ones,
+deliberately. Volume is not productivity: a dense grid is equally consistent with a
+productive year and a year of rework. Cross-read it against `retro friction` before
+concluding anything, and if you ever rank people on this, rank on rework going down
+rather than activity going up.
 
 ### Share one session
 
