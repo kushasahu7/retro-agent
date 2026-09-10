@@ -212,6 +212,9 @@ Python 3.9+, standard library only. `cryptography` is needed only for `retro enc
 git clone https://github.com/kushasahu7/retro-agent
 cd retro-agent
 
+./retro                  # grouped command list, quick start and env vars
+./retro help friction    # one command's options and examples
+
 ./retro consent          # read what gets stored, then --accept
 ./retro consent --accept
 

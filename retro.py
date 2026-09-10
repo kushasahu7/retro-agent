@@ -1094,43 +1094,262 @@ def heat_svg(cols, lvl, args, start, end, total, active, streak):
     o.append("</svg>")
     open(args.svg, "w").write("\n".join(o))
 
-def main():
-    p = argparse.ArgumentParser(prog="retro")
-    sub = p.add_subparsers(dest="cmd", required=True)
-    ar = sub.add_parser("archive")
-    ar.add_argument("--raw", action="store_true", help="store secrets verbatim (not advised)")
-    ar.add_argument("--quiet", action="store_true")
-    ar.set_defaults(fn=cmd_archive)
-    sa = sub.add_parser("sanitize")
-    sa.add_argument("session"); sa.add_argument("--out", default="./bundle")
-    sa.add_argument("--strict", action="store_true")
-    sa.set_defaults(fn=cmd_sanitize)
-    ih = sub.add_parser("install-hook"); ih.add_argument("--uninstall", action="store_true")
-    ih.set_defaults(fn=cmd_install_hook)
-    sub.add_parser("status").set_defaults(fn=cmd_status)
-    sub.add_parser("parity").set_defaults(fn=cmd_parity)
-    hm = sub.add_parser("heatmap")
-    hm.add_argument("--metric", default="prompts",
-                    choices=["prompts", "sessions", "edits", "tools", "tokens"])
-    hm.add_argument("--days", type=int, default=365)
-    hm.add_argument("--svg", default=None, help="also write a shareable SVG")
-    hm.add_argument("--no-color", action="store_true")
-    hm.set_defaults(fn=cmd_heatmap)
-    cs = sub.add_parser("consent")
-    cs.add_argument("--accept", action="store_true"); cs.add_argument("--revoke", action="store_true")
+OVERVIEW = """\
+retro  friction analytics and outbound sanitizer for coding-agent transcripts
+
+Reads what Claude Code, Codex and Cursor already write to local disk. Nothing
+leaves this machine: there are no network calls anywhere in this tool.
+
+QUICK START
+  retro consent --accept     agree once to what gets stored locally
+  retro archive              snapshot sessions before the agent deletes them
+  retro scan                 parse archive and live sessions into SQLite
+  retro friction             the rework scorecard
+
+COMMANDS
+  capture
+    consent          show, record or withdraw consent for local archiving
+    archive          snapshot every session, stripping credentials on the way in
+    status           what is held, and which sessions survive only here
+    scan             parse archive and live sessions into SQLite
+
+  read
+    friction         rework scorecard: verify ratio, churn, retries, error clusters
+    heatmap          activity grid for the last year, optionally exported as SVG
+    parity           what each adapter can observe; run before comparing agents
+
+  share
+    sanitize         redacted, shareable bundle of one session plus a report
+
+  manage
+    install-hook     run `archive` automatically whenever a session ends
+    encrypt          encrypt the archive at rest, or --decrypt to reverse it
+    forget           erase sessions, prompts and snapshots. There is no undo
+
+Run `retro help <command>` or `retro <command> --help` for options and examples.
+
+ENVIRONMENT
+  RETRO_PROJECTS, RETRO_CODEX, RETRO_CURSOR_DB   read copies, not the live stores
+  RETRO_CLAUDE                                   ~/.claude, for prompts and blobs
+  RETRO_ARCHIVE, RETRO_DB                        relocate retro's own data
+  RETRO_PASSPHRASE                               read back an encrypted archive
+
+Metrics are deterministic. No model is involved and none is required.
+"""
+
+RAW = argparse.RawDescriptionHelpFormatter
+
+
+def build_parser():
+    """Returns the parser plus a name -> subparser map, so `retro help <cmd>`
+    can print one command's help without re-deriving it."""
+    p = argparse.ArgumentParser(
+        prog="retro", usage="retro <command> [options]",
+        description=OVERVIEW, formatter_class=RAW)
+    # No `required=True`: a bare `retro` should print help, not an argparse error.
+    # help=SUPPRESS: the COMMANDS section above is hand-written, so argparse
+    # must not also print its own bare list of names.
+    sub = p.add_subparsers(dest="cmd", metavar="<command>",
+                           help=argparse.SUPPRESS)
+    subs = {}
+
+    def add(name, desc, epilog=None):
+        # Explicit prog: otherwise argparse derives it from the parent's usage
+        # string and error messages read "retro <command> [options] sanitize:".
+        sp = sub.add_parser(name, prog=f"retro {name}", description=desc,
+                            epilog=epilog, formatter_class=RAW,
+                            usage=f"retro {name} [options]")
+        subs[name] = sp
+        return sp
+
+    cs = add("consent",
+             "Show what archiving stores on this machine, and record or withdraw\n"
+             "agreement. `retro archive` refuses to run until consent is recorded.",
+             "Examples:\n"
+             "  retro consent            print what would be stored, and current state\n"
+             "  retro consent --accept   agree, and enable archiving\n"
+             "  retro consent --revoke   withdraw; archiving stops until re-accepted")
+    cs.add_argument("--accept", action="store_true", help="record agreement")
+    cs.add_argument("--revoke", action="store_true", help="withdraw agreement")
     cs.set_defaults(fn=cmd_consent)
-    fg = sub.add_parser("forget")
-    fg.add_argument("--session"); fg.add_argument("--agent"); fg.add_argument("--before")
-    fg.add_argument("--pattern"); fg.add_argument("--all", action="store_true")
-    fg.add_argument("--yes", action="store_true")
-    fg.set_defaults(fn=cmd_forget)
-    en = sub.add_parser("encrypt"); en.add_argument("--decrypt", action="store_true")
+
+    ar = add("archive",
+             "Snapshot every session from every supported agent into the local\n"
+             "archive, gzipped and owner-readable only.\n\n"
+             "Credentials are redacted BEFORE anything is written, and each edited\n"
+             "line is re-parsed to confirm it is still valid JSON. Cursor's verbatim\n"
+             "before/after source code is excluded unless you enable it in config.\n"
+             "Re-running is cheap: unchanged sessions are skipped by content hash.",
+             "Examples:\n"
+             "  retro archive            snapshot anything new or changed\n"
+             "  retro archive --quiet    for hooks and cron; suppresses the consent notice")
+    ar.add_argument("--raw", action="store_true",
+                    help="store secrets verbatim, skipping redaction (not advised)")
+    ar.add_argument("--quiet", action="store_true",
+                    help="suppress the consent notice when run non-interactively")
+    ar.set_defaults(fn=cmd_archive)
+
+    st = add("status",
+             "List every archived session: line count, size on disk, and whether it\n"
+             "still exists in the agent's own store or now survives only here.",
+             "Sessions marked RESCUED were deleted by the agent's retention cleanup\n"
+             "and exist nowhere else.")
+    st.set_defaults(fn=cmd_status)
+
+    sc = add("scan",
+             "Parse the archive plus any live sessions into SQLite, computing every\n"
+             "metric. Live copies win over archived ones. Safe to re-run.",
+             "Unrecognised record types are counted and reported rather than\n"
+             "crashing, because these transcript formats change without notice.")
+    sc.set_defaults(fn=cmd_scan)
+
+    fr = add("friction",
+             "The rework scorecard. Per session: active minutes, human turns, tool\n"
+             "calls, errors, edits, verification runs, byte-identical retries, and\n"
+             "which files were edited repeatedly with no verification in between.\n\n"
+             "Then the highest-friction sessions, ranked by errors, retries and churn.",
+             "Examples:\n"
+             "  retro friction                      every session\n"
+             "  retro friction --agent cursor        one agent only\n"
+             "  retro friction --project acme-api    one project only\n\n"
+             "The headline number is verification runs per edit. Token volume is not\n"
+             "reported as effort: cached context replay dominates it.")
+    fr.add_argument("--project", default=None, help="only sessions whose project matches")
+    fr.add_argument("--agent", default=None,
+                    help="only one agent: claude-code, codex or cursor")
+    fr.set_defaults(fn=cmd_friction)
+
+    hm = add("heatmap",
+             "A contribution-style activity grid for the last year, plus streaks,\n"
+             "weekday distribution and the highest-friction days.",
+             "Examples:\n"
+             "  retro heatmap                          prompts, last 365 days\n"
+             "  retro heatmap --metric edits --days 90\n"
+             "  retro heatmap --svg ~/Desktop/mine.svg  write it outside the repo\n\n"
+             "Levels are quartiles of your own active days, not absolute counts, so\n"
+             "one enormous day cannot flatten the rest of the grid.\n\n"
+             "Caveat: `prompts` reads Claude Code's history file only. The other\n"
+             "metrics need a session timestamp, and Cursor supplies one for a small\n"
+             "fraction of sessions. Check `retro parity` before reading too much in.")
+    hm.add_argument("--metric", default="prompts",
+                    choices=["prompts", "sessions", "edits", "tools", "tokens"],
+                    help="what each cell counts (default: prompts)")
+    hm.add_argument("--days", type=int, default=365,
+                    help="window size in days (default: 365)")
+    hm.add_argument("--svg", default=None,
+                    help="also write a standalone SVG with per-day tooltips")
+    hm.add_argument("--no-color", action="store_true",
+                    help="plain block characters instead of ANSI colour")
+    hm.set_defaults(fn=cmd_heatmap)
+
+    pa = add("parity",
+             "What each adapter can actually observe: timestamp coverage, whether\n"
+             "sessions span real time, tool classification, edit targets, error\n"
+             "status, token counts, and unrecognised records.",
+             "Run this before quoting any cross-agent number. Adapters are blind in\n"
+             "different places, and a coverage gap looks exactly like a behavioural\n"
+             "difference. Any metric whose inputs are not covered on both sides is\n"
+             "reported as not comparable.")
+    pa.set_defaults(fn=cmd_parity)
+
+    sa = add("sanitize",
+             "Produce a shareable bundle for one session: a scorecard, a turn-by-turn\n"
+             "timeline with every tool call marked ok or FAIL, and a redaction report.\n\n"
+             "Fails closed. Anything resembling a secret is masked, and everything\n"
+             "masked is listed for you to read before you send it anywhere.",
+             "Examples:\n"
+             "  retro sanitize kafka --out ./bundle           match title or session id\n"
+             "  retro sanitize kafka --out ./bundle --strict   also mask filenames, hosts\n\n"
+             "Read REDACTIONS.md before sharing. Regex catches secrets, paths and\n"
+             "addresses; it does not catch context that has no shape, such as a URL\n"
+             "that reveals what you were working on.")
+    sa.add_argument("session", help="session id, or a substring of its title")
+    sa.add_argument("--out", default="./bundle", help="output directory (default: ./bundle)")
+    sa.add_argument("--strict", action="store_true",
+                    help="also pseudonymise filenames and mask hostnames")
+    sa.set_defaults(fn=cmd_sanitize)
+
+    ih = add("install-hook",
+             "Add a SessionEnd hook to ~/.claude/settings.json so `archive` runs\n"
+             "whenever a session closes. Backs the file up first and merges rather\n"
+             "than overwriting. Archiving takes a PID lock, so the hook cannot\n"
+             "collide with a manual run.",
+             "Examples:\n"
+             "  retro install-hook             install (idempotent)\n"
+             "  retro install-hook --uninstall remove it again")
+    ih.add_argument("--uninstall", action="store_true", help="remove the hook")
+    ih.set_defaults(fn=cmd_install_hook)
+
+    en = add("encrypt",
+             "Encrypt every archive file at rest with scrypt and Fernet. Requires\n"
+             "the `cryptography` package; nothing else in retro needs it.",
+             "Examples:\n"
+             "  retro encrypt                          prompts for a passphrase\n"
+             "  RETRO_PASSPHRASE=... retro scan         read an encrypted archive back\n"
+             "  retro encrypt --decrypt                restore plaintext\n\n"
+             "Lose the passphrase and the archive is unrecoverable. This is\n"
+             "all-or-nothing: there is no per-session encryption and no key rotation.")
+    en.add_argument("--decrypt", action="store_true", help="reverse encryption")
     en.set_defaults(fn=cmd_encrypt)
-    sub.add_parser("scan").set_defaults(fn=cmd_scan)
-    f = sub.add_parser("friction"); f.add_argument("--project", default=None)
-    f.add_argument("--agent", default=None)
-    f.set_defaults(fn=cmd_friction)
-    a = p.parse_args(); a.fn(a)
+
+    fg = add("forget",
+             "Erase archived material. Dry run unless --yes is given.\n\n"
+             "Removes archive files, file-snapshot blobs, prompt rows and the derived\n"
+             "metrics. It cannot reach copies that already left: backups, bundles you\n"
+             "generated, or anything you already shared.",
+             "Examples:\n"
+             "  retro forget --before 2026-01-01        dry run\n"
+             "  retro forget --before 2026-01-01 --yes  actually erase\n"
+             "  retro forget --session 06c5c27b --yes   one session\n"
+             "  retro forget --agent cursor --yes       everything from one agent\n"
+             "  retro forget --pattern 'api key' --yes  scrub matching prompts\n"
+             "  retro forget --all --yes                everything. No undo.")
+    fg.add_argument("--session", help="session id, or a substring of one")
+    fg.add_argument("--agent", help="match the agent or project label")
+    fg.add_argument("--before", help="sessions starting before this date (YYYY-MM-DD)")
+    fg.add_argument("--pattern", help="regex; matching prompts are scrubbed")
+    fg.add_argument("--all", action="store_true", help="erase everything retro holds")
+    fg.add_argument("--yes", action="store_true", help="required to actually delete")
+    fg.set_defaults(fn=cmd_forget)
+
+    return p, subs
+
+
+# The things people actually type when they want help.
+HELP_WORDS = ("help", "-help", "--help", "-h", "-?", "--?", "?")
+
+
+def main():
+    p, subs = build_parser()
+    argv = sys.argv[1:]
+
+    if not argv:
+        p.print_help()
+        sys.exit(1)
+
+    # `retro help`, `retro -help`, `retro help friction`, `retro ? friction`
+    if argv[0] in HELP_WORDS:
+        target = argv[1] if len(argv) > 1 else None
+        if target in subs:
+            subs[target].print_help()
+        elif target:
+            print(f"retro: no such command {target!r}\n")
+            p.print_help()
+            sys.exit(1)
+        else:
+            p.print_help()
+        return
+
+    # `retro friction help` reads as a request for help, not a bad argument.
+    if len(argv) > 1 and argv[0] in subs and argv[1] in HELP_WORDS:
+        subs[argv[0]].print_help()
+        return
+
+    a = p.parse_args(argv)
+    if not getattr(a, "fn", None):
+        p.print_help()
+        sys.exit(1)
+    a.fn(a)
 
 if __name__ == "__main__":
     main()
