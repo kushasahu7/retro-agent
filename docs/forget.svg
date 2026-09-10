@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="864" height="231" viewBox="0 0 864 231" font-family="monospace" font-size="13.0">
+<rect width="864" height="231" rx="8" fill="#0d1117"/>
+<rect width="864" height="30" rx="8" fill="#161b22"/>
+<rect y="22" width="864" height="8" fill="#161b22"/>
+<circle cx="18" cy="15.0" r="5.5" fill="#ff5f56"/>
+<circle cx="35" cy="15.0" r="5.5" fill="#ffbd2e"/>
+<circle cx="52" cy="15.0" r="5.5" fill="#27c93f"/>
+<text x="432.0" y="19.5" fill="#6e7681" text-anchor="middle" font-size="11.5">retro forget --all</text>
+<text x="18.0" y="48" fill="#3fb950" xml:space="preserve" textLength="9.0" lengthAdjust="spacingAndGlyphs">$</text>
+<text x="36.0" y="48" fill="#ffffff" xml:space="preserve" textLength="162.0" lengthAdjust="spacingAndGlyphs">retro forget --all</text>
+<text x="18" y="67.0" fill="#c9d1d9" xml:space="preserve" textLength="621.0" lengthAdjust="spacingAndGlyphs">would erase EVERYTHING: 4 archive file(s), all prompts, all snapshots</text>
+<text x="18" y="86.0" fill="#c9d1d9" xml:space="preserve" textLength="306.0" lengthAdjust="spacingAndGlyphs">would erase 4 archived session(s):</text>
+<text x="18" y="105.0" fill="#c9d1d9" xml:space="preserve" textLength="351.0" lengthAdjust="spacingAndGlyphs">   0a663640-a638-41fc-8e22-765179dd78ad</text>
+<text x="18" y="124.0" fill="#c9d1d9" xml:space="preserve" textLength="351.0" lengthAdjust="spacingAndGlyphs">   cd2c3bab-b091-4d24-9b41-6c5c3e114b28</text>
+<text x="18" y="143.0" fill="#c9d1d9" xml:space="preserve" textLength="351.0" lengthAdjust="spacingAndGlyphs">   e7af11ba-d308-4da4-b44b-88470258ce85</text>
+<text x="18" y="162.0" fill="#c9d1d9" xml:space="preserve" textLength="531.0" lengthAdjust="spacingAndGlyphs">   2026-09-02T14-05-00-90f869af-120e-4ed7-a1b6-0728bd599fc9</text>
+<text x="18" y="200.0" fill="#c9d1d9" xml:space="preserve" textLength="486.0" lengthAdjust="spacingAndGlyphs">re-run with --yes to actually erase. There is no undo.</text>
+</svg>

@@ -19,6 +19,8 @@ retro encrypt    # encrypt the archive at rest (--decrypt to reverse)
 retro forget     # erase sessions, prompts and snapshots. No undo.
 ```
 
+![retro friction](docs/friction.svg)
+
 ## Why
 
 Three separate problems, one parser.
@@ -65,6 +67,8 @@ Adapters normalise everything into one IR whose load-bearing field is `kind`
 (`edit`/`read`/`shell`/`verify`/`search`/`web`/`other`), not the tool's name. Claude Code
 names its tools; Codex routes nearly everything through `shell`. Metrics never see an
 agent-specific string.
+
+![retro parity](docs/parity.svg)
 
 ## Adapter parity: read this before comparing agents
 
@@ -192,25 +196,91 @@ Honest list. Several of these are load-bearing.
 - Single-user, single-machine. No sync, no team view.
 - `scan` re-parses everything each run; there is no incremental mode.
 
-## Install
+## Install and run
 
-Python 3.9+, standard library only.
+Python 3.9+, standard library only. `cryptography` is needed only for `retro encrypt`.
 
 ```bash
-git clone <this repo> ~/retro-agent
+git clone https://github.com/kushasahu7/retro-agent ~/retro-agent
 cd ~/retro-agent
-python3 retro.py archive
-python3 retro.py scan
-python3 retro.py friction
+
+./retro consent          # read what gets stored, then --accept
+./retro consent --accept
+
+./retro archive          # snapshot sessions before they are deleted
+./retro scan             # parse into SQLite
+./retro friction         # the scorecard
+./retro parity           # adapter coverage; run before comparing agents
 ```
 
-Run the archiver automatically on every session exit:
+Add it to your PATH if you want `retro` from anywhere:
 
 ```bash
-python3 retro.py install-hook      # adds a SessionEnd hook to ~/.claude/settings.json
+ln -s ~/retro-agent/retro /usr/local/bin/retro
 ```
 
-It backs up `settings.json` first and merges rather than overwriting.
+![retro archive](docs/archive.svg)
+
+### Share one session
+
+```bash
+./retro sanitize "hero section" --out ./bundle     # match on title or session id
+./retro sanitize "hero section" --out ./bundle --strict   # also mask filenames and hosts
+```
+
+Writes `bundle/bundle.md` and `bundle/REDACTIONS.md`. **Read the redaction report before
+sharing anything.**
+
+![retro sanitize](docs/sanitize.svg)
+
+### Automate it
+
+```bash
+./retro install-hook      # adds a SessionEnd hook to ~/.claude/settings.json
+```
+
+Backs up `settings.json` first and merges rather than overwriting. The archiver takes a
+PID lock so the hook cannot collide with a manual run.
+
+### Encrypt and erase
+
+```bash
+./retro encrypt                      # scrypt + Fernet; prompts for a passphrase
+RETRO_PASSPHRASE=... ./retro scan    # read an encrypted archive back
+./retro encrypt --decrypt
+
+./retro forget --before 2026-01-01   # dry run
+./retro forget --before 2026-01-01 --yes
+./retro forget --all --yes           # everything
+```
+
+![retro forget](docs/forget.svg)
+
+### Try it without touching your real data
+
+The repo ships a synthetic corpus generator. This is also how the screenshots above are
+produced, so no real session data ever enters the repository.
+
+```bash
+python3 tools/demo_corpus.py /tmp/retro-demo
+export RETRO_PROJECTS=/tmp/retro-demo/projects \
+       RETRO_CODEX=/tmp/retro-demo/codex/sessions \
+       RETRO_ARCHIVE=/tmp/retro-demo/arc \
+       RETRO_DB=/tmp/retro-demo/demo.db \
+       RETRO_CLAUDE=/tmp/retro-demo/claude \
+       RETRO_CURSOR_DB=/tmp/retro-demo/none.vscdb
+./retro consent --accept && ./retro archive && ./retro scan && ./retro friction
+```
+
+Every store path is env-overridable (`RETRO_PROJECTS`, `RETRO_CODEX`, `RETRO_CURSOR_DB`,
+`RETRO_ARCHIVE`, `RETRO_DB`, `RETRO_CLAUDE`), so you can point retro at a copy of your
+data rather than the live one.
+
+Regenerate the screenshots with:
+
+```bash
+python3 tools/screenshot.py /tmp/retro-demo
+```
 
 ## Status
 

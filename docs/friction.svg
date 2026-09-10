@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1596" height="592" viewBox="0 0 1596 592" font-family="monospace" font-size="13.0">
+<rect width="1596" height="592" rx="8" fill="#0d1117"/>
+<rect width="1596" height="30" rx="8" fill="#161b22"/>
+<rect y="22" width="1596" height="8" fill="#161b22"/>
+<circle cx="18" cy="15.0" r="5.5" fill="#ff5f56"/>
+<circle cx="35" cy="15.0" r="5.5" fill="#ffbd2e"/>
+<circle cx="52" cy="15.0" r="5.5" fill="#27c93f"/>
+<text x="798.0" y="19.5" fill="#6e7681" text-anchor="middle" font-size="11.5">retro friction</text>
+<text x="18.0" y="48" fill="#3fb950" xml:space="preserve" textLength="9.0" lengthAdjust="spacingAndGlyphs">$</text>
+<text x="36.0" y="48" fill="#ffffff" xml:space="preserve" textLength="126.0" lengthAdjust="spacingAndGlyphs">retro friction</text>
+<text x="18" y="86.0" fill="#58a6ff" xml:space="preserve" textLength="981.0" lengthAdjust="spacingAndGlyphs">SESSION                   AGENT        PROJECT            MIN  TURN  TOOL  ERR  FLAIL  EDIT  VER RETRY  CHURN</text>
+<text x="18" y="105.0" fill="#6e7681" xml:space="preserve" textLength="1170.0" lengthAdjust="spacingAndGlyphs">----------------------------------------------------------------------------------------------------------------------------------</text>
+<text x="18" y="124.0" fill="#c9d1d9" xml:space="preserve" textLength="945.0" lengthAdjust="spacingAndGlyphs">Add pagination to the al  claude-code  e-dev-acme-api       6     2     5    0   0.00     2    2     2  -</text>
+<text x="18" y="143.0" fill="#c9d1d9" xml:space="preserve" textLength="1026.0" lengthAdjust="spacingAndGlyphs">Make the hero section re  claude-code  -dev-demo-site      20     3    18    0   0.00     9    0    16  Hero.jsxx9</text>
+<text x="18" y="162.0" fill="#c9d1d9" xml:space="preserve" textLength="1035.0" lengthAdjust="spacingAndGlyphs">add retry logic to the i  codex        acme-api             0     1     8    1   0.12     4    2     4  ingest.pyx4</text>
+<text x="18" y="181.0" fill="#c9d1d9" xml:space="preserve" textLength="945.0" lengthAdjust="spacingAndGlyphs">Debug worker failing to   claude-code  e-dev-acme-api      11     2    10    7   0.70     1    0     7  -</text>
+<text x="18" y="200.0" fill="#6e7681" xml:space="preserve" textLength="1170.0" lengthAdjust="spacingAndGlyphs">----------------------------------------------------------------------------------------------------------------------------------</text>
+<text x="18" y="238.0" fill="#58a6ff" xml:space="preserve" textLength="576.0" lengthAdjust="spacingAndGlyphs">TOTALS  4 sessions | 0.6h active | 8 human turns | 41 tool calls</text>
+<text x="18" y="257.0" fill="#c9d1d9" xml:space="preserve" textLength="648.0" lengthAdjust="spacingAndGlyphs">        output 13K tok | input 8K | cache-read 0.6M (replay, not effort)</text>
+<text x="18" y="276.0" fill="#c9d1d9" xml:space="preserve" textLength="495.0" lengthAdjust="spacingAndGlyphs">        flail rate 19.5% of answered tool calls errored</text>
+<text x="18" y="295.0" fill="#c9d1d9" xml:space="preserve" textLength="468.0" lengthAdjust="spacingAndGlyphs">        verify ratio 0.25 verification runs per edit</text>
+<text x="18" y="314.0" fill="#c9d1d9" xml:space="preserve" textLength="495.0" lengthAdjust="spacingAndGlyphs">        exact retries 29 identical tool calls re-issued</text>
+<text x="18" y="333.0" fill="#c9d1d9" xml:space="preserve" textLength="666.0" lengthAdjust="spacingAndGlyphs">        consecutive user turns 0  (NOISY: mid-turn messages look the same)</text>
+<text x="18" y="371.0" fill="#58a6ff" xml:space="preserve" textLength="225.0" lengthAdjust="spacingAndGlyphs">HIGHEST-FRICTION SESSIONS</text>
+<text x="18" y="390.0" fill="#c9d1d9" xml:space="preserve" textLength="486.0" lengthAdjust="spacingAndGlyphs">  ##################  Make the hero section responsive</text>
+<text x="18" y="409.0" fill="#f85149" xml:space="preserve" textLength="900.0" lengthAdjust="spacingAndGlyphs">                      16 exact retries | churn: Hero.jsx edited 9x | 9 edits, ZERO verification runs</text>
+<text x="18" y="428.0" fill="#c9d1d9" xml:space="preserve" textLength="459.0" lengthAdjust="spacingAndGlyphs">  ###############     Debug worker failing to start</text>
+<text x="18" y="447.0" fill="#f85149" xml:space="preserve" textLength="783.0" lengthAdjust="spacingAndGlyphs">                      7 tool errors | 7 exact retries | 1 edits, ZERO verification runs</text>
+<text x="18" y="466.0" fill="#c9d1d9" xml:space="preserve" textLength="576.0" lengthAdjust="spacingAndGlyphs">                      error clusters (consecutive failures): [7]</text>
+<text x="18" y="485.0" fill="#c9d1d9" xml:space="preserve" textLength="522.0" lengthAdjust="spacingAndGlyphs">  #######             add retry logic to the ingest worker</text>
+<text x="18" y="504.0" fill="#c9d1d9" xml:space="preserve" textLength="738.0" lengthAdjust="spacingAndGlyphs">                      1 tool errors | 4 exact retries | churn: ingest.py edited 4x</text>
+<text x="18" y="523.0" fill="#c9d1d9" xml:space="preserve" textLength="531.0" lengthAdjust="spacingAndGlyphs">  #                   Add pagination to the alerts endpoint</text>
+<text x="18" y="542.0" fill="#c9d1d9" xml:space="preserve" textLength="333.0" lengthAdjust="spacingAndGlyphs">                      2 exact retries</text>
+</svg>

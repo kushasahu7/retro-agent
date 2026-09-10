@@ -81,7 +81,7 @@ class ClaudeAdapter:
     name = "claude-code"
     @staticmethod
     def discover(root=None):
-        root = root or os.path.expanduser("~/.claude/projects")
+        root = root or os.environ.get("RETRO_PROJECTS") or os.path.expanduser("~/.claude/projects")
         return sorted(glob.glob(os.path.join(root, "*", "*.jsonl")))
     @staticmethod
     def matches(path):
@@ -165,7 +165,7 @@ class CodexAdapter:
     name = "codex"
     @staticmethod
     def discover(root=None):
-        root = root or os.path.expanduser("~/.codex/sessions")
+        root = root or os.environ.get("RETRO_CODEX") or os.path.expanduser("~/.codex/sessions")
         return sorted(glob.glob(os.path.join(root, "*", "*", "*", "rollout-*.jsonl")))
     @staticmethod
     def matches(path):
@@ -316,7 +316,7 @@ class CodexAdapter:
 
 
 # ------------------------------------------------------------------ Cursor
-CURSOR_DB = os.path.expanduser(
+CURSOR_DB = os.environ.get("RETRO_CURSOR_DB") or os.path.expanduser(
     "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb")
 CURSOR_EDIT = {"edit_file", "edit_file_v2", "search_replace", "create_file",
                "delete_file", "write_file", "apply_patch", "multi_edit"}

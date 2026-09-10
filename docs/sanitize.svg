@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="828" height="269" viewBox="0 0 828 269" font-family="monospace" font-size="13.0">
+<rect width="828" height="269" rx="8" fill="#0d1117"/>
+<rect width="828" height="30" rx="8" fill="#161b22"/>
+<rect y="22" width="828" height="8" fill="#161b22"/>
+<circle cx="18" cy="15.0" r="5.5" fill="#ff5f56"/>
+<circle cx="35" cy="15.0" r="5.5" fill="#ffbd2e"/>
+<circle cx="52" cy="15.0" r="5.5" fill="#27c93f"/>
+<text x="414.0" y="19.5" fill="#6e7681" text-anchor="middle" font-size="11.5">retro sanitize &#x27;hero section&#x27; --out ./bundle</text>
+<text x="18.0" y="48" fill="#3fb950" xml:space="preserve" textLength="9.0" lengthAdjust="spacingAndGlyphs">$</text>
+<text x="36.0" y="48" fill="#ffffff" xml:space="preserve" textLength="396.0" lengthAdjust="spacingAndGlyphs">retro sanitize &#x27;hero section&#x27; --out ./bundle</text>
+<text x="18" y="86.0" fill="#c9d1d9" xml:space="preserve" textLength="450.0" lengthAdjust="spacingAndGlyphs">wrote ~/retro-agent/bundle/bundle.md  (1189 chars)</text>
+<text x="18" y="105.0" fill="#c9d1d9" xml:space="preserve" textLength="360.0" lengthAdjust="spacingAndGlyphs">wrote ~/retro-agent/bundle/REDACTIONS.md</text>
+<text x="18" y="143.0" fill="#c9d1d9" xml:space="preserve" textLength="135.0" lengthAdjust="spacingAndGlyphs">masked: nothing</text>
+<text x="18" y="162.0" fill="#c9d1d9" xml:space="preserve" textLength="432.0" lengthAdjust="spacingAndGlyphs">self-check for residual secrets in output: CLEAN</text>
+<text x="18" y="181.0" fill="#c9d1d9" xml:space="preserve" textLength="594.0" lengthAdjust="spacingAndGlyphs">filenames still visible: 1  (re-run with --strict to pseudonymise)</text>
+<text x="18" y="219.0" fill="#c9d1d9" xml:space="preserve" textLength="522.0" lengthAdjust="spacingAndGlyphs">REVIEW REDACTIONS.md BEFORE SHARING. Nothing was uploaded.</text>
+</svg>

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Thin wrapper so you can run `retro <cmd>` instead of `python3 retro.py <cmd>`.
+exec "${RETRO_PYTHON:-python3}" "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/retro.py" "$@"
