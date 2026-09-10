@@ -408,7 +408,7 @@ class CursorAdapter:
         return meta, bubbles
 
     @classmethod
-    def export(cls, ident, db=None):
+    def export(cls, ident, db=None, include_code=False):
         """Serialise a KV-stored conversation to JSONL so it can be archived."""
         cid = str(ident).replace("cursor://", "")
         meta, bubbles = cls._records(cid, db)
@@ -416,6 +416,9 @@ class CursorAdapter:
         out = [json.dumps({"_retro": "cursor-meta", "composerId": cid, "meta": {
             k: meta.get(k) for k in ("name", "createdAt", "lastUpdatedAt",
                                      "unifiedMode", "isAgentic", "modelConfig")}})]
+        if not include_code:
+            import privacy
+            bubbles = [privacy.strip_cursor_code(b) for b in bubbles]
         out += [json.dumps({"_retro": "cursor-bubble", "bubble": b}) for b in bubbles]
         return ("\n".join(out) + "\n").encode()
 

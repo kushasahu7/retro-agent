@@ -4,7 +4,7 @@
 No network. No model. Deterministic metrics only.
 """
 import argparse, json, os, re, sqlite3, sys, glob, hashlib, gzip, shutil, stat
-import adapters
+import adapters, privacy
 from adapters import classify_shell
 import datetime as dt
 from collections import Counter, defaultdict
@@ -13,6 +13,7 @@ PROJECTS = os.environ.get("RETRO_PROJECTS") or os.path.expanduser("~/.claude/pro
 DB = os.environ.get("RETRO_DB") or os.path.expanduser("~/retro-agent/retro.db")
 ARCHIVE = os.environ.get("RETRO_ARCHIVE") or os.path.expanduser("~/retro-agent/archive")
 CLAUDE = os.environ.get("RETRO_CLAUDE") or os.path.expanduser("~/.claude")
+ROOT = os.path.dirname(ARCHIVE)
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 # Commands that count as "I checked my work" between edits.
@@ -265,8 +266,40 @@ def sha_of(path):
 def cmd_archive(args):
     """Tier 1 always: raw session, gzipped, 0700, local only.
     Nothing leaves this machine. Append-only: a session that grew is re-snapshotted."""
+    cfg = privacy.require_consent(ROOT, quiet=getattr(args, "quiet", False))
+    if cfg is None: return
+    # The SessionEnd hook can fire while a manual run is in progress; a second
+    # archiver would just collide on the database.
+    lock = os.path.join(ROOT, ".archive.lock")
+    try:
+        lock_fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(lock_fd, str(os.getpid()).encode()); os.close(lock_fd)
+    except FileExistsError:
+        try: pid = int(open(lock).read().strip())
+        except Exception: pid = None
+        alive = False
+        if pid:
+            try: os.kill(pid, 0); alive = True
+            except OSError: alive = False
+        if alive:
+            if not getattr(args, "quiet", False):
+                print(f"another archive run is in progress (pid {pid}); skipping")
+            return
+        os.remove(lock)   # stale lock from a killed run
+        open(lock, "w").write(str(os.getpid()))
+    try:
+        _archive_body(args, cfg, con=None)
+    finally:
+        try: os.remove(lock)
+        except OSError: pass
+    return
+
+def _archive_body(args, cfg, con=None):
     os.makedirs(ARCHIVE, exist_ok=True)
     os.chmod(ARCHIVE, stat.S_IRWXU)  # 0700, owner only
+    os.chmod(ROOT, stat.S_IRWXU)
+    redact = cfg.get("redact_on_archive", True) and not getattr(args, "raw", False)
+    rcounts = Counter()
     con = sqlite3.connect(DB); ensure_db(con)
     now = dt.datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -284,7 +317,8 @@ def cmd_archive(args):
         project = (os.path.basename(os.path.dirname(f))
                    if ad is adapters.ClaudeAdapter else ad.name)
         if exporter:                      # KV-stored session: serialise it first
-            blob = exporter(f)
+            try: blob = exporter(f, include_code=cfg.get("cursor_include_code", False))
+            except TypeError: blob = exporter(f)
             if not blob: continue
             size = len(blob)
             sha = hashlib.sha256(blob).hexdigest()
@@ -308,15 +342,18 @@ def cmd_archive(args):
             os.rename(arc, os.path.join(pdir, f"{sid}.v{snaps-1}.jsonl.gz"))
 
         lines = 0
-        if blob is not None:
-            lines = blob.count(b"\n")
-            with gzip.open(arc + ".tmp", "wb", compresslevel=6) as fout:
-                fout.write(blob)
-        else:
-            with open(f, "rb") as fin, gzip.open(arc + ".tmp", "wb", compresslevel=6) as fout:
-                for line in fin:
-                    lines += 1
-                    fout.write(line)
+        src_iter = (blob.splitlines(keepends=True) if blob is not None
+                    else open(f, "rb"))
+        with gzip.open(arc + ".tmp", "wb", compresslevel=6) as fout:
+            for raw_line in src_iter:
+                lines += 1
+                if redact:
+                    txt = raw_line.decode("utf-8", "replace")
+                    txt = privacy.redact_line(txt, rcounts)
+                    fout.write(txt.encode("utf-8"))
+                else:
+                    fout.write(raw_line)
+        if blob is None: src_iter.close()
         os.replace(arc + ".tmp", arc)   # atomic, never a half-written archive
         os.chmod(arc, stat.S_IRUSR | stat.S_IWUSR)
 
@@ -346,6 +383,15 @@ def cmd_archive(args):
     if rescued: print(f"  !! {rescued} session(s) vanished from source since last run and are held here")
     print(f"  holding {n} sessions ({raw/1e6:.1f}MB raw -> {comp/1e6:.1f}MB gz) in {ARCHIVE}")
     print(f"  {present} still live on disk, {n-present} exist ONLY in this archive")
+    if redact:
+        got = {k: v for k, v in rcounts.items() if not k.startswith("_")}
+        print(f"  redacted before writing: " + (", ".join(f"{k}={v}" for k, v in
+              sorted(got.items())) if got else "nothing found"))
+        if rcounts.get("_reverted_invalid_json"):
+            print(f"    {rcounts['_reverted_invalid_json']} line(s) kept raw "
+                  f"(redaction would have broken JSON)")
+    else:
+        print("  WARNING: --raw, secrets stored verbatim")
     tp = con.execute("SELECT COUNT(*), MIN(iso), MAX(iso) FROM prompts").fetchone()
     print(f"  prompts: +{np_} new of {sp} in history.jsonl -> {tp[0]} held"
           f" ({(tp[1] or '?')[:10]} to {(tp[2] or '?')[:10]})")
@@ -781,10 +827,114 @@ def cmd_parity(args):
         if not warned: print("  none; coverage is comparable across adapters")
     print()
 
+
+def cmd_consent(args):
+    cfg = privacy.load_config(ROOT)
+    if args.revoke:
+        cfg["consent"] = {"accepted": False, "at": None}
+        privacy.save_config(ROOT, cfg)
+        print("consent revoked; `retro archive` will not run until re-accepted")
+        return
+    if args.accept:
+        cfg["consent"] = {"accepted": True,
+                          "at": dt.datetime.now().astimezone().isoformat(timespec="seconds")}
+        privacy.save_config(ROOT, cfg)
+        print("consent recorded. Settings:")
+        for k in ("redact_on_archive", "cursor_include_code"):
+            print(f"  {k}: {cfg.get(k)}")
+        print(f"  encryption: {cfg['encryption']['enabled']}  (enable with `retro encrypt`)")
+        return
+    print(privacy.CONSENT_TEXT.format(root=ROOT))
+    print(f"  current: accepted={cfg['consent']['accepted']} at={cfg['consent']['at']}")
+    print("  `retro consent --accept` to agree, `--revoke` to withdraw\n")
+
+def cmd_forget(args):
+    """Erase archived material. There is no undo."""
+    con = sqlite3.connect(DB); ensure_db(con)
+    removed_files = removed_rows = 0
+    targets = []
+    rows = con.execute("SELECT sid, arc_path, project FROM archive").fetchall()
+    for sid, arc, project in rows:
+        keep = True
+        if args.all: keep = False
+        if args.session and args.session.lower() in sid.lower(): keep = False
+        if args.agent and args.agent.lower() in (project or "").lower(): keep = False
+        if args.before:
+            r = con.execute("SELECT start FROM sessions WHERE sid=?", (sid,)).fetchone()
+            if r and r[0] and r[0][:10] < args.before: keep = False
+        if not keep: targets.append((sid, arc))
+    if not targets and not args.pattern and not args.all:
+        print("nothing matched"); return
+    if not args.yes:
+        if args.all:
+            nf = sum(len(fs) for _, _, fs in os.walk(ARCHIVE))
+            print(f"would erase EVERYTHING: {nf} archive file(s), all prompts, all snapshots")
+        print(f"would erase {len(targets)} archived session(s):")
+        for sid, _ in targets[:10]: print(f"   {sid}")
+        if len(targets) > 10: print(f"   ... and {len(targets)-10} more")
+        if args.pattern: print(f"would scrub prompts matching /{args.pattern}/")
+        print("\nre-run with --yes to actually erase. There is no undo.")
+        return
+    for sid, arc in targets:
+        for p in (arc, arc + ".enc"):
+            if p and os.path.exists(p):
+                os.remove(p); removed_files += 1
+        # blob rows point at real files on disk; delete the bytes, not just the row
+        for (bp,) in con.execute("SELECT arc_path FROM blobs WHERE sid=?", (sid,)):
+            if bp and os.path.exists(bp):
+                os.remove(bp); removed_files += 1
+        con.execute("DELETE FROM archive WHERE sid=?", (sid,))
+        con.execute("DELETE FROM sessions WHERE sid=?", (sid,))
+        con.execute("DELETE FROM blobs WHERE sid=?", (sid,))
+        con.execute("DELETE FROM prompts WHERE sid=?", (sid,))
+        removed_rows += 1
+    if args.all:
+        # prompts and blobs outlive their transcripts, so --all must sweep them too
+        for (bp,) in con.execute("SELECT arc_path FROM blobs"):
+            if bp and os.path.exists(bp):
+                os.remove(bp); removed_files += 1
+        con.execute("DELETE FROM blobs")
+        n_pr = con.execute("SELECT COUNT(*) FROM prompts").fetchone()[0]
+        n_se = con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+        con.execute("DELETE FROM prompts")
+        con.execute("DELETE FROM sessions")   # titles and metrics, also derived data
+        print(f"  also erased {n_pr} prompt(s), {n_se} session record(s), every file snapshot")
+        fh = os.path.join(ARCHIVE, "_file-history")
+        if os.path.isdir(fh): shutil.rmtree(fh, ignore_errors=True)
+    if args.pattern:
+        rx = re.compile(args.pattern, re.I)
+        hits = [h for h, d in con.execute("SELECT h, display FROM prompts") if d and rx.search(d)]
+        for h in hits: con.execute("DELETE FROM prompts WHERE h=?", (h,))
+        print(f"scrubbed {len(hits)} prompt(s) matching /{args.pattern}/")
+    con.commit()
+    con.execute("VACUUM")
+    print(f"erased {removed_rows} session(s), {removed_files} archive file(s)")
+    print("note: material already copied elsewhere (backups, bundles) is unaffected")
+
+def cmd_encrypt(args):
+    if not privacy.encryption_available():
+        print("needs the `cryptography` package: pip install cryptography"); return
+    cfg = privacy.load_config(ROOT)
+    if cfg["encryption"]["enabled"] and not args.decrypt:
+        print("archive is already encrypted"); return
+    pw = privacy.get_passphrase()
+    if not pw: print("no passphrase given"); return
+    if args.decrypt:
+        n = privacy.decrypt_archive(ROOT, ARCHIVE, pw)
+        print(f"decrypted {n} archive file(s)")
+    else:
+        n = privacy.encrypt_archive(ROOT, ARCHIVE, pw)
+        print(f"encrypted {n} archive file(s)")
+        print("keep the passphrase safe: without it the archive is unrecoverable.")
+        print("set RETRO_PASSPHRASE for scan/friction to read it back.")
+
 def main():
     p = argparse.ArgumentParser(prog="retro")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("archive").set_defaults(fn=cmd_archive)
+    ar = sub.add_parser("archive")
+    ar.add_argument("--raw", action="store_true", help="store secrets verbatim (not advised)")
+    ar.add_argument("--quiet", action="store_true")
+    ar.set_defaults(fn=cmd_archive)
     sa = sub.add_parser("sanitize")
     sa.add_argument("session"); sa.add_argument("--out", default="./bundle")
     sa.add_argument("--strict", action="store_true")
@@ -793,6 +943,16 @@ def main():
     ih.set_defaults(fn=cmd_install_hook)
     sub.add_parser("status").set_defaults(fn=cmd_status)
     sub.add_parser("parity").set_defaults(fn=cmd_parity)
+    cs = sub.add_parser("consent")
+    cs.add_argument("--accept", action="store_true"); cs.add_argument("--revoke", action="store_true")
+    cs.set_defaults(fn=cmd_consent)
+    fg = sub.add_parser("forget")
+    fg.add_argument("--session"); fg.add_argument("--agent"); fg.add_argument("--before")
+    fg.add_argument("--pattern"); fg.add_argument("--all", action="store_true")
+    fg.add_argument("--yes", action="store_true")
+    fg.set_defaults(fn=cmd_forget)
+    en = sub.add_parser("encrypt"); en.add_argument("--decrypt", action="store_true")
+    en.set_defaults(fn=cmd_encrypt)
     sub.add_parser("scan").set_defaults(fn=cmd_scan)
     f = sub.add_parser("friction"); f.add_argument("--project", default=None)
     f.add_argument("--agent", default=None)

@@ -12,3 +12,7 @@ __pycache__/
 *.pyc
 .DS_Store
 .venv/
+
+# local state: consent record, encryption salt
+config.json
+.archive.lock

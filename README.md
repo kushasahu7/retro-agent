@@ -8,12 +8,15 @@ with anyone else**.
 Nothing leaves your machine. No network calls, no API keys, no model required.
 
 ```bash
+retro consent    # what gets stored, where, and why; required before archiving
 retro archive    # checkpoint every session before the agent deletes it
 retro scan       # parse archive + live sessions into SQLite
 retro friction   # rework scorecard
 retro parity     # what each adapter can and cannot see
 retro sanitize   # redacted, shareable bundle of one session
 retro status     # what is held, and what survives only here
+retro encrypt    # encrypt the archive at rest (--decrypt to reverse)
+retro forget     # erase sessions, prompts and snapshots. No undo.
 ```
 
 ## Why
@@ -84,14 +87,38 @@ Run it before quoting any cross-agent number.
 
 ## Privacy model
 
-- Everything is local. No network calls anywhere in the codebase.
-- `archive/` is `0700`, archived files `0600`, the SQLite DB `0600`.
-- `sanitize` fails closed: anything that looks like a secret is masked, and everything
-  masked is listed in `REDACTIONS.md` for human review before sharing.
-- Cursor's store is opened **read-only** (`?mode=ro`) so a live editor is never at risk.
+**The archive is a permanent copy of data your agents would otherwise delete.** That
+retention window was, incidentally, acting as a security control. The tool removes it,
+so the following are on by default:
 
-**The archive is a permanent copy of data that was previously ephemeral.** That is the
-point of the tool and also its main risk. See Gaps.
+- **Consent is required.** `retro archive` will not run until you have read what gets
+  stored and run `retro consent --accept`.
+- **Credentials are redacted before they are written**, not after. API keys, connection
+  strings, JWTs, private keys and `secret=`-style assignments are replaced in the JSONL
+  as it is archived. Redaction is verified to keep each line valid JSON; a line that
+  would be corrupted is kept raw and counted in the report.
+- **Cursor source code is excluded.** Cursor stores full before/after file contents for
+  every edit; those fields are replaced with `<CODE_OMITTED:Nb>` so the archive does not
+  become a mirror of your codebase. Enable with `cursor_include_code` if you need diffs.
+- **Encryption at rest** via `retro encrypt` (scrypt + Fernet). Set `RETRO_PASSPHRASE`
+  for `scan`/`friction` to read it back. Lose the passphrase and the archive is gone.
+- **Erasure**: `retro forget --session/--agent/--before/--pattern/--all`. Requires
+  `--yes`. Removes archive files, blob files, prompt rows and derived metrics.
+- Everything is local. No network calls anywhere in the codebase.
+- `archive/` is `0700`, archived files `0600`, config and database `0600`.
+- Cursor's store is opened **read-only** (`?mode=ro`) so a live editor is never at risk.
+- `retro archive` takes a PID lock, so the `SessionEnd` hook cannot collide with a
+  manual run.
+
+### What is still on you
+
+- Exclude the install directory from Time Machine, iCloud Drive and Dropbox. `0700`
+  does not stop a backup agent, and unencrypted archives in cloud backups is the most
+  likely way this leaks.
+- The archive holds **third-party personal data**: other people's email addresses and
+  the content of correspondence. For anything beyond personal use that carries legal
+  obligations the tool does not help you meet.
+- A sanitized bundle may still carry employer IP. Sharing one could breach an NDA.
 
 ## Gaps and limitations
 
@@ -99,17 +126,18 @@ Honest list. Several of these are load-bearing.
 
 ### Security and privacy
 
-- **The archive is unencrypted at rest.** `0700` protects against other local users,
-  not a stolen laptop, and not a backup tool (Time Machine, Dropbox, iCloud) sweeping
-  the directory into cloud storage. Encryption is not implemented.
-- **Archiving makes secrets permanent.** Credentials that would have expired with the
-  30-day cleanup now persist indefinitely. There is no secret-scanning-at-archive-time,
-  no retention policy on the archive, and no `retro forget`.
-- **The archive stores third-party personal data.** Transcripts contain other people's
-  email addresses and correspondence. If this is ever more than personal use, that is a
-  GDPR/CCPA question the tool does not currently help with.
-- **Sanitized bundles may still carry employer IP.** Sharing one could breach an NDA or
-  employment agreement. The tool cannot evaluate that for you.
+- **Email addresses are deliberately NOT redacted at archive time.** They are often
+  load-bearing context, and redacting them would break the transcript's meaning. They
+  are masked by `sanitize` on the way out instead. A single real corpus held 220
+  distinct addresses across 104 external domains, so treat the archive accordingly.
+- **Redaction is regex-based and will miss novel credential formats.** It reduces
+  exposure; it does not eliminate it. There is no entropy-based fallback at archive time.
+- **No automatic retention policy.** The archive grows without bound until you run
+  `retro forget`. There is no age-based auto-expiry.
+- **Encryption is opt-in and all-or-nothing.** Enabling it rewrites every archive file;
+  there is no per-session encryption and no key rotation. Passphrase loss is terminal.
+- **`forget` cannot reach copies that already left.** Backups, previously generated
+  bundles, and anything you already shared are unaffected.
 
 ### Sanitizer
 
@@ -156,6 +184,8 @@ Honest list. Several of these are load-bearing.
 
 - No tests. None.
 - The `install-hook` idempotency guard and `--uninstall` path are written but **untested**.
+- Redaction adds a full decode/regex pass per line, so archiving is meaningfully slower
+  than a straight copy.
 - Format drift is guaranteed. Unrecognised record types are counted and reported rather
   than crashing, and that counter has already caught real bugs, but new record types are
   silently excluded from metrics until an adapter is updated.
