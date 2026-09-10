@@ -10,8 +10,11 @@ import datetime as dt
 from collections import Counter, defaultdict
 
 PROJECTS = os.environ.get("RETRO_PROJECTS") or os.path.expanduser("~/.claude/projects")
-DB = os.environ.get("RETRO_DB") or os.path.expanduser("~/retro-agent/retro.db")
-ARCHIVE = os.environ.get("RETRO_ARCHIVE") or os.path.expanduser("~/retro-agent/archive")
+# Everything lives next to this file, so the tool works from any checkout
+# location. Each path stays env-overridable for demos and tests.
+HERE = os.path.dirname(os.path.abspath(__file__))
+DB = os.environ.get("RETRO_DB") or os.path.join(HERE, "retro.db")
+ARCHIVE = os.environ.get("RETRO_ARCHIVE") or os.path.join(HERE, "archive")
 CLAUDE = os.environ.get("RETRO_CLAUDE") or os.path.expanduser("~/.claude")
 ROOT = os.path.dirname(ARCHIVE)
 
@@ -744,7 +747,11 @@ def cmd_install_hook(args):
         try: cfg = json.load(open(sp))
         except Exception:
             print(f"{sp} is not valid JSON; refusing to touch it"); return
-        bak = sp + ".bak-" + dt.datetime.now().strftime("%Y%m%d%H%M%S")
+        stamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+        bak = f"{sp}.bak-{stamp}"
+        n = 1
+        while os.path.exists(bak):      # same-second runs must not clobber each other
+            bak = f"{sp}.bak-{stamp}-{n}"; n += 1
         shutil.copy2(sp, bak); print(f"backed up -> {bak}")
     me = os.path.abspath(__file__)
     cmd = f"{sys.executable} {me} archive >/dev/null 2>&1"

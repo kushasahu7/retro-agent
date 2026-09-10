@@ -116,7 +116,8 @@ so the following are on by default:
 
 ### What is still on you
 
-- Exclude the install directory from Time Machine, iCloud Drive and Dropbox. `0700`
+- The archive and database live **next to the code**, inside the checkout, and are
+  gitignored. Exclude that directory from Time Machine, iCloud Drive and Dropbox. `0700`
   does not stop a backup agent, and unencrypted archives in cloud backups is the most
   likely way this leaks.
 - The archive holds **third-party personal data**: other people's email addresses and
@@ -201,8 +202,8 @@ Honest list. Several of these are load-bearing.
 Python 3.9+, standard library only. `cryptography` is needed only for `retro encrypt`.
 
 ```bash
-git clone https://github.com/kushasahu7/retro-agent ~/retro-agent
-cd ~/retro-agent
+git clone https://github.com/kushasahu7/retro-agent
+cd retro-agent
 
 ./retro consent          # read what gets stored, then --accept
 ./retro consent --accept
@@ -216,7 +217,7 @@ cd ~/retro-agent
 Add it to your PATH if you want `retro` from anywhere:
 
 ```bash
-ln -s ~/retro-agent/retro /usr/local/bin/retro
+ln -s "$PWD/retro" /usr/local/bin/retro
 ```
 
 ![retro archive](docs/archive.svg)
