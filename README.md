@@ -98,6 +98,9 @@ so the following are on by default:
 
 - **Consent is required.** `retro archive` will not run until you have read what gets
   stored and run `retro consent --accept`.
+
+![retro consent](docs/consent.svg)
+
 - **Credentials are redacted before they are written**, not after. API keys, connection
   strings, JWTs, private keys and `secret=`-style assignments are replaced in the JSONL
   as it is archived. Redaction is verified to keep each line valid JSON; a line that
