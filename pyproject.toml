@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retro-agent"
+version = "0.1.0"
+description = "Local-only friction analytics and outbound sanitizer for coding-agent transcripts"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Kusha Sahu" }]
+keywords = [
+    "claude-code", "codex", "cursor", "coding-agent", "transcripts",
+    "analytics", "redaction", "developer-tools", "cli",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Utilities",
+]
+# Deliberately empty. Everything here is standard library, which is what makes
+# `uvx retro-agent` start instantly and keeps the privacy claim easy to audit.
+dependencies = []
+
+[project.optional-dependencies]
+# Only `retro encrypt` needs this. Nothing else imports it.
+encryption = ["cryptography>=42"]
+
+[project.scripts]
+retro = "retro_agent.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/kushasahu7/retro-agent"
+Source = "https://github.com/kushasahu7/retro-agent"
+Issues = "https://github.com/kushasahu7/retro-agent/issues"
+
+[tool.setuptools]
+packages = ["retro_agent"]

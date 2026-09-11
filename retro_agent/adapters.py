@@ -434,7 +434,7 @@ class CursorAdapter:
             k: meta.get(k) for k in ("name", "createdAt", "lastUpdatedAt",
                                      "unifiedMode", "isAgentic", "modelConfig")}})]
         if not include_code:
-            import privacy
+            from . import privacy
             bubbles = [privacy.strip_cursor_code(b) for b in bubbles]
         out += [json.dumps({"_retro": "cursor-bubble", "bubble": b}) for b in bubbles]
         return ("\n".join(out) + "\n").encode()

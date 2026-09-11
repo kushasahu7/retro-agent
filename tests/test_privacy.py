@@ -9,7 +9,7 @@ import json, os, tempfile, unittest
 from collections import Counter
 
 import helpers  # noqa: F401
-import privacy
+from retro_agent import privacy
 
 
 def redact(line):

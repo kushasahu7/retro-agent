@@ -9,7 +9,7 @@ import helpers
 from helpers import claude_session, codex_session, codex_meta, codex_shell
 
 REPO = helpers.REPO
-RETRO = os.path.join(REPO, "retro.py")
+RETRO_MODULE = "retro_agent.cli"
 
 
 class Sandbox(unittest.TestCase):
@@ -57,8 +57,10 @@ class Sandbox(unittest.TestCase):
         shutil.rmtree(self.box, ignore_errors=True)
 
     def run_retro(self, *args):
-        return subprocess.run([sys.executable, RETRO, *args],
-                              capture_output=True, text=True, env=self.env, cwd=REPO)
+        env = dict(self.env)
+        env["PYTHONPATH"] = REPO + os.pathsep + env.get("PYTHONPATH", "")
+        return subprocess.run([sys.executable, "-m", RETRO_MODULE, *args],
+                              capture_output=True, text=True, env=env, cwd=REPO)
 
     def consent(self):
         r = self.run_retro("consent", "--accept")

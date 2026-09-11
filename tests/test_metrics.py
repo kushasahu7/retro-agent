@@ -7,8 +7,8 @@ import os, tempfile, unittest, uuid
 
 import helpers
 from helpers import claude_session
-import adapters
-import retro
+from retro_agent import adapters
+from retro_agent import cli as retro
 
 
 def load(script, title="T"):

@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
-# Thin wrapper so you can run `retro <cmd>` instead of `python3 retro.py <cmd>`.
-exec "${RETRO_PYTHON:-python3}" "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/retro.py" "$@"
+# Dev wrapper so `./retro <cmd>` works straight from a checkout, from any
+# working directory, without installing. An installed copy gets a real `retro`
+# entry point instead and does not use this file.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec env PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" \
+     "${RETRO_PYTHON:-python3}" -m retro_agent.cli "$@"

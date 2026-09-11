@@ -7,7 +7,7 @@ been edited 77 times, and Claude Code's edit count inflated from 26 to 156.
 import unittest
 
 import helpers  # noqa: F401  (puts the repo on sys.path)
-from adapters import classify_shell
+from retro_agent.adapters import classify_shell
 
 
 class Verification(unittest.TestCase):

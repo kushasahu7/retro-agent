@@ -112,11 +112,11 @@ if __name__ == "__main__":
                RETRO_CODEX=os.path.join(demo, "codex", "sessions"),
                RETRO_CURSOR_DB=os.path.join(demo, "none.vscdb"))
     # Order matters: each command depends on the state the previous one left.
-    subprocess.run("python3 retro.py consent --accept", shell=True, env=env,
+    subprocess.run("python3 -m retro_agent.cli consent --accept", shell=True, env=env,
                    cwd=repo, capture_output=True)
-    subprocess.run("python3 retro.py archive", shell=True, env=env, cwd=repo,
+    subprocess.run("python3 -m retro_agent.cli archive", shell=True, env=env, cwd=repo,
                    capture_output=True)
-    subprocess.run("python3 retro.py scan", shell=True, env=env, cwd=repo,
+    subprocess.run("python3 -m retro_agent.cli scan", shell=True, env=env, cwd=repo,
                    capture_output=True)
     shots = [
         ("friction", "retro friction", None),
@@ -127,19 +127,19 @@ if __name__ == "__main__":
         ("forget", "retro forget --all", None),
     ]
     for name, cmd, cap in shots:
-        py = "python3 retro.py " + cmd.split(" ", 1)[1]
+        py = "python3 -m retro_agent.cli " + cmd.split(" ", 1)[1]
         shown = cmd if "--out" not in cmd else cmd.split(" --out")[0] + " --out ./bundle"
         lines = [f"$ {shown}"] + capture(py, env, repo, cap, demo)
         w, h, lc, need = render(lines, shown, os.path.join(docs, f"{name}.svg"))
         print(f"docs/{name}.svg  {w}x{h}  {len(lines)} lines  "
               f"widest {lc} chars -> {need:.0f}px fits in {w}px  OK")
     # the shareable SVG heatmap, drawn from the synthetic corpus
-    subprocess.run(f"python3 retro.py heatmap --svg {os.path.join(docs,'heatmap.svg')} "
+    subprocess.run(f"python3 -m retro_agent.cli heatmap --svg {os.path.join(docs,'heatmap.svg')} "
                    f"--no-color", shell=True, env=env, cwd=repo, capture_output=True)
     print("docs/heatmap.svg  (synthetic data)")
 
     # archive shot last, rebuilding from scratch so the numbers look like a first run
-    lines = [f"$ retro archive"] + capture("python3 retro.py archive", env, repo, None, demo)
+    lines = [f"$ retro archive"] + capture("python3 -m retro_agent.cli archive", env, repo, None, demo)
     w, h, lc, need = render(lines, "retro archive", os.path.join(docs, "archive.svg"))
     print(f"docs/archive.svg  {w}x{h}  {len(lines)} lines  "
           f"widest {lc} chars -> {need:.0f}px fits in {w}px  OK")

@@ -4,18 +4,39 @@
 No network. No model. Deterministic metrics only.
 """
 import argparse, json, os, re, sqlite3, sys, glob, hashlib, gzip, shutil, stat
-import adapters, privacy
-from adapters import classify_shell
+from . import adapters, privacy
+from .adapters import classify_shell
 import datetime as dt
 from collections import Counter, defaultdict
 
 PROJECTS = os.environ.get("RETRO_PROJECTS") or os.path.expanduser("~/.claude/projects")
-# Everything lives next to this file, so the tool works from any checkout
-# location. Each path stays env-overridable for demos and tests.
-HERE = os.path.dirname(os.path.abspath(__file__))
-DB = os.environ.get("RETRO_DB") or os.path.join(HERE, "retro.db")
-ARCHIVE = os.environ.get("RETRO_ARCHIVE") or os.path.join(HERE, "archive")
+
+PKG_DIR = os.path.dirname(os.path.abspath(__file__))
+CHECKOUT = os.path.dirname(PKG_DIR)
+
+
+def _data_root():
+    """Where retro keeps its own archive, database and config.
+
+    An installed copy must never write into site-packages, so the default is
+    ~/.retro-agent. A git checkout that already holds data next to it keeps
+    using that, so installing over an existing clone does not orphan a 46MB
+    archive someone has been accumulating.
+    """
+    env = os.environ.get("RETRO_HOME")
+    if env:
+        return os.path.expanduser(env)
+    for legacy in ("retro.db", "archive", "config.json"):
+        if os.path.exists(os.path.join(CHECKOUT, legacy)):
+            return CHECKOUT
+    return os.path.expanduser("~/.retro-agent")
+
+
+DATA_ROOT = _data_root()
+DB = os.environ.get("RETRO_DB") or os.path.join(DATA_ROOT, "retro.db")
+ARCHIVE = os.environ.get("RETRO_ARCHIVE") or os.path.join(DATA_ROOT, "archive")
 CLAUDE = os.environ.get("RETRO_CLAUDE") or os.path.expanduser("~/.claude")
+# Config sits beside the archive, so redirecting the archive redirects config too.
 ROOT = os.path.dirname(ARCHIVE)
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -1101,12 +1122,16 @@ Reads what Claude Code, Codex and Cursor already write to local disk. Nothing
 leaves this machine: there are no network calls anywhere in this tool.
 
 QUICK START
+  retro init                 all of the below, in one command
+
   retro consent --accept     agree once to what gets stored locally
   retro archive              snapshot sessions before the agent deletes them
   retro scan                 parse archive and live sessions into SQLite
   retro friction             the rework scorecard
 
 COMMANDS
+    init             first run: consent, archive, scan, then the scorecard
+
   capture
     consent          show, record or withdraw consent for local archiving
     archive          snapshot every session, stripping credentials on the way in
@@ -1131,13 +1156,56 @@ Run `retro help <command>` or `retro <command> --help` for options and examples.
 ENVIRONMENT
   RETRO_PROJECTS, RETRO_CODEX, RETRO_CURSOR_DB   read copies, not the live stores
   RETRO_CLAUDE                                   ~/.claude, for prompts and blobs
-  RETRO_ARCHIVE, RETRO_DB                        relocate retro's own data
+  RETRO_HOME                                     where retro keeps its own data
+  RETRO_ARCHIVE, RETRO_DB                        relocate those individually
   RETRO_PASSPHRASE                               read back an encrypted archive
 
 Metrics are deterministic. No model is involved and none is required.
 """
 
 RAW = argparse.RawDescriptionHelpFormatter
+
+
+def cmd_init(args):
+    """Nothing to a scorecard in one command.
+
+    Time to first insight decides whether a stranger ever sees a number, so
+    consent, archive, scan and friction happen here in sequence rather than as
+    four things to discover.
+    """
+    cfg = privacy.load_config(ROOT)
+    if not cfg["consent"]["accepted"]:
+        print(privacy.CONSENT_TEXT.format(root=ROOT))
+        if args.yes:
+            agreed = True
+        elif not sys.stdin.isatty():
+            print("  Not a terminal. Re-run with --yes to accept.\n")
+            return
+        else:
+            try:
+                agreed = input("  Proceed? [y/N] ").strip().lower() in ("y", "yes")
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return
+        if not agreed:
+            print("  Nothing archived.\n")
+            return
+        cfg["consent"] = {"accepted": True,
+                          "at": dt.datetime.now().astimezone().isoformat(timespec="seconds")}
+        privacy.save_config(ROOT, cfg)
+        print("  consent recorded\n")
+
+    ns = argparse.Namespace
+    print("[1/3] archiving sessions before your agent deletes them")
+    cmd_archive(ns(raw=False, quiet=True))
+    print("\n[2/3] parsing")
+    cmd_scan(ns())
+    print("\n[3/3] scorecard")
+    cmd_friction(ns(project=None, agent=None))
+    print("  Next:")
+    print("    retro install-hook   archive automatically when a session ends")
+    print("    retro heatmap        a year of activity at a glance")
+    print("    retro help           everything else\n")
 
 
 def build_parser():
@@ -1161,6 +1229,17 @@ def build_parser():
                             usage=f"retro {name} [options]")
         subs[name] = sp
         return sp
+
+    it = add("init",
+             "First run, in one command: record consent, archive every session,\n"
+             "parse it, and print the scorecard.\n\n"
+             "Equivalent to `consent --accept`, `archive`, `scan`, `friction`.",
+             "Examples:\n"
+             "  retro init          prompts before storing anything\n"
+             "  retro init --yes    accept without prompting, for scripts")
+    it.add_argument("--yes", action="store_true",
+                    help="accept the consent notice without prompting")
+    it.set_defaults(fn=cmd_init)
 
     cs = add("consent",
              "Show what archiving stores on this machine, and record or withdraw\n"

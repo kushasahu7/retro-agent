@@ -207,29 +207,58 @@ Honest list. Several of these are load-bearing.
 
 ## Install and run
 
-Python 3.9+, standard library only. `cryptography` is needed only for `retro encrypt`.
+Python 3.9+, no dependencies outside the standard library. One command from
+nothing to a scorecard:
+
+```bash
+uvx retro-agent init          # no install at all
+```
+
+or
+
+```bash
+pipx install retro-agent && retro init
+pip install retro-agent && retro init
+```
+
+`retro init` records consent, archives every session it can find, parses them, and
+prints the scorecard. It asks before storing anything; `--yes` skips the prompt.
+
+Then the individual commands:
+
+```bash
+retro                  # grouped command list, quick start and env vars
+retro help friction    # one command's options and examples
+
+retro archive          # snapshot sessions before your agent deletes them
+retro scan             # parse into SQLite
+retro friction         # the scorecard
+retro parity           # adapter coverage; run before comparing agents
+```
+
+Encryption is the only optional extra, since it is the one thing that needs a
+third-party library:
+
+```bash
+pipx install "retro-agent[encryption]"
+```
+
+### From a checkout
 
 ```bash
 git clone https://github.com/kushasahu7/retro-agent
 cd retro-agent
-
-./retro                  # grouped command list, quick start and env vars
-./retro help friction    # one command's options and examples
-
-./retro consent          # read what gets stored, then --accept
-./retro consent --accept
-
-./retro archive          # snapshot sessions before they are deleted
-./retro scan             # parse into SQLite
-./retro friction         # the scorecard
-./retro parity           # adapter coverage; run before comparing agents
+./retro init
 ```
 
-Add it to your PATH if you want `retro` from anywhere:
+`./retro` is a dev wrapper that runs the package in place, from any directory, with
+nothing installed.
 
-```bash
-ln -s "$PWD/retro" /usr/local/bin/retro
-```
+### Where it keeps its data
+
+An installed copy uses `~/.retro-agent`. A git checkout that already holds an
+`archive/` or `retro.db` keeps using those, so installing over an existing clone does
+not orphan an archive you have been accumulating. Override with `RETRO_HOME`.
 
 ![retro archive](docs/archive.svg)
 

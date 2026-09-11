@@ -20,3 +20,8 @@ config.json
 # generated output at the repo root (real activity data); docs/ examples are synthetic
 /*.svg
 /*.md.bak
+
+# packaging artifacts
+build/
+dist/
+*.egg-info/

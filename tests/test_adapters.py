@@ -9,8 +9,8 @@ import helpers
 from helpers import (claude_session, codex_session, codex_meta, codex_shell,
                      codex_custom_exec, codex_token_count, IDE_WRAPPED,
                      cursor_db, cursor_text, cursor_tool)
-import adapters
-import retro
+from retro_agent import adapters
+from retro_agent import cli as retro
 
 
 class ClaudeCode(unittest.TestCase):
