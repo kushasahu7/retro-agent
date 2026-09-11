@@ -20,7 +20,7 @@ retro encrypt    # encrypt the archive at rest (--decrypt to reverse)
 retro forget     # erase sessions, prompts and snapshots. No undo.
 ```
 
-![retro friction](docs/friction.svg)
+![retro friction](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/friction.svg)
 
 ## Why
 
@@ -69,7 +69,7 @@ Adapters normalise everything into one IR whose load-bearing field is `kind`
 names its tools; Codex routes nearly everything through `shell`. Metrics never see an
 agent-specific string.
 
-![retro parity](docs/parity.svg)
+![retro parity](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/parity.svg)
 
 ## Adapter parity: read this before comparing agents
 
@@ -99,7 +99,7 @@ so the following are on by default:
 - **Consent is required.** `retro archive` will not run until you have read what gets
   stored and run `retro consent --accept`.
 
-![retro consent](docs/consent.svg)
+![retro consent](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/consent.svg)
 
 - **Credentials are redacted before they are written**, not after. API keys, connection
   strings, JWTs, private keys and `secret=`-style assignments are replaced in the JSONL
@@ -260,7 +260,7 @@ An installed copy uses `~/.retro-agent`. A git checkout that already holds an
 `archive/` or `retro.db` keeps using those, so installing over an existing clone does
 not orphan an archive you have been accumulating. Override with `RETRO_HOME`.
 
-![retro archive](docs/archive.svg)
+![retro archive](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/archive.svg)
 
 ### Activity heatmap
 
@@ -270,7 +270,7 @@ not orphan an archive you have been accumulating. Override with `RETRO_HOME`.
 ./retro heatmap --svg heatmap.svg               # shareable image
 ```
 
-![retro heatmap](docs/heatmap-term.svg)
+![retro heatmap](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/heatmap-term.svg)
 
 `--metric` takes `prompts` (default), `sessions`, `edits`, `tools` or `tokens`. Prompt
 history usually reaches back furthest, because `~/.claude/history.jsonl` survives the
@@ -278,7 +278,7 @@ transcript cleanup by months.
 
 The `--svg` export is a standalone image with per-day tooltips:
 
-![heatmap svg](docs/heatmap.svg)
+![heatmap svg](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/heatmap.svg)
 
 Levels are **quartiles of your own active days**, not absolute counts, so one enormous
 day cannot flatten the rest of the grid.
@@ -299,7 +299,7 @@ rather than activity going up.
 Writes `bundle/bundle.md` and `bundle/REDACTIONS.md`. **Read the redaction report before
 sharing anything.**
 
-![retro sanitize](docs/sanitize.svg)
+![retro sanitize](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/sanitize.svg)
 
 ### Automate it
 
@@ -322,7 +322,7 @@ RETRO_PASSPHRASE=... ./retro scan    # read an encrypted archive back
 ./retro forget --all --yes           # everything
 ```
 
-![retro forget](docs/forget.svg)
+![retro forget](https://raw.githubusercontent.com/kushasahu7/retro-agent/main/docs/forget.svg)
 
 ### Try it without touching your real data
 

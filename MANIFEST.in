@@ -1,0 +1,4 @@
+# setuptools auto-includes test*.py but not the fixtures they import, which
+# would ship a test suite that cannot run. Take the whole directory.
+recursive-include tests *.py
+include LICENSE README.md
