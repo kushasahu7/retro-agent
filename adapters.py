@@ -14,7 +14,10 @@ VERIFY_RE = re.compile(
     r"\b(pytest|npm (run )?(test|lint|build)|yarn (test|lint)|pnpm (test|lint|build)"
     r"|go test|cargo (test|check|clippy)|ruff|mypy|tsc|eslint|jest|vitest"
     r"|make (test|check)|python -m (pytest|unittest)|git diff|git status)\b", re.I)
-READ_RE = re.compile(r"^\s*(cat|head|tail|less|nl|rg|grep|ls|find|wc|jq|stat|file|tree|which|ps|du)\b")
+# `sed` is listed here deliberately: the in-place case is matched earlier and
+# returns before this, so anything reaching here is a print like `sed -n`.
+READ_RE = re.compile(r"^\s*(cat|head|tail|less|nl|rg|grep|ls|find|wc|jq|stat|file"
+                     r"|tree|which|ps|du|sed|awk|diff|od|xxd)\b")
 PATCH_RE = re.compile(r"\bapply_?patch\b", re.I)
 SEDI_RE = re.compile(r"\bsed\s+-i")
 TEE_RE = re.compile(r"\btee\b\s+(?!-)([\w./~-]+)")
@@ -40,8 +43,11 @@ def classify_shell(cmd):
         p = PATCH_PATH.search(c)
         return ("edit", p.group(1).strip() if p else None)
     if SEDI_RE.search(c):
-        m2 = re.search(r"\bsed\s+-i[^\s]*\s+(?:-e\s+\S+\s+)?\S+\s+(\S+)", c)
-        return ("edit", m2.group(1) if m2 else None)
+        # The file is the last argument. Scan from the right for the first token
+        # that looks like a path, so the sed script and an empty -i suffix are
+        # both skipped regardless of how many arguments precede the file.
+        toks = [t.strip("'\"") for t in c.split()]
+        return ("edit", next((t for t in reversed(toks) if _looks_like_file(t)), None))
     m3 = TEE_RE.search(c)
     if m3 and _looks_like_file(m3.group(1)): return ("edit", m3.group(1))
     m4 = REDIR_RE.search(c)
@@ -60,6 +66,17 @@ def parse_ts(v):
 def _open(path):
     return gzip.open(path, "rt", errors="replace") if path.endswith(".gz") \
            else open(path, "r", errors="replace")
+
+
+def _lines(path):
+    """Iterate a transcript and close the handle when done.
+
+    Iterating `_open(path)` directly leaked one descriptor per session, which a
+    163-session scan turns into 163 open files.
+    """
+    with _open(path) as fh:
+        for line in fh:
+            yield line
 
 class SessionIR:
     def __init__(self, agent, path):
@@ -100,7 +117,7 @@ class ClaudeAdapter:
         s.sid = os.path.basename(path).split(".")[0]
         s.project = os.path.basename(os.path.dirname(path))
         pending = {}; idx = 0
-        for line in _open(path):
+        for line in _lines(path):
             line = line.strip()
             if not line: continue
             try: d = json.loads(line)
@@ -179,7 +196,7 @@ class CodexAdapter:
         b = os.path.basename(path)
         s.sid = b[:-6].split("-", 1)[1] if b.startswith("rollout-") else b[:-6]
         pending = {}; idx = 0; last_usage = None; last_ts = None; seen_text = set()
-        for line in _open(path):
+        for line in _lines(path):
             line = line.strip()
             if not line: continue
             try: d = json.loads(line)
@@ -431,7 +448,7 @@ class CursorAdapter:
             if meta is None: return s
         else:  # archived JSONL export
             meta = {}; bubbles = []
-            for line in _open(path):
+            for line in _lines(path):
                 line = line.strip()
                 if not line: continue
                 try: d = json.loads(line)

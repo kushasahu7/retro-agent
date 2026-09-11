@@ -25,7 +25,8 @@ def load_config(root):
     cfg = json.loads(json.dumps(DEFAULTS))
     if os.path.exists(p):
         try:
-            cfg.update(json.load(open(p)))
+            with open(p) as fh:
+                cfg.update(json.load(fh))
         except Exception:
             pass
     return cfg
@@ -161,8 +162,10 @@ def encrypt_archive(root, archive, passphrase):
         for fn in files:
             if not fn.endswith(".gz") or fn.endswith(".enc"): continue
             p = os.path.join(dirpath, fn)
-            data = open(p, "rb").read()
-            open(p + ".enc", "wb").write(f.encrypt(data))
+            with open(p, "rb") as fh:
+                data = fh.read()
+            with open(p + ".enc", "wb") as out:
+                out.write(f.encrypt(data))
             os.chmod(p + ".enc", stat.S_IRUSR | stat.S_IWUSR)
             os.remove(p)
             n += 1
@@ -179,7 +182,10 @@ def decrypt_archive(root, archive, passphrase):
         for fn in files:
             if not fn.endswith(".enc"): continue
             p = os.path.join(dirpath, fn)
-            open(p[:-4], "wb").write(f.decrypt(open(p, "rb").read()))
+            with open(p, "rb") as fh:
+                plain = f.decrypt(fh.read())
+            with open(p[:-4], "wb") as out:
+                out.write(plain)
             os.chmod(p[:-4], stat.S_IRUSR | stat.S_IWUSR)
             os.remove(p)
             n += 1
@@ -196,6 +202,7 @@ def open_maybe_encrypted(path, root):
             raise RuntimeError("archive is encrypted; set RETRO_PASSPHRASE")
         f = _fernet(pw, base64.b64decode(cfg["encryption"]["salt"]))
         import io
-        raw = f.decrypt(open(path, "rb").read())
+        with open(path, "rb") as fh:
+            raw = f.decrypt(fh.read())
         return io.TextIOWrapper(io.BytesIO(gzip.decompress(raw)), errors="replace")
     return gzip.open(path, "rt", errors="replace")

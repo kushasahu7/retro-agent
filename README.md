@@ -194,8 +194,9 @@ Honest list. Several of these are load-bearing.
 
 ### Engineering
 
-- No tests. None.
-- The `install-hook` idempotency guard and `--uninstall` path are written but **untested**.
+- **Coverage is uneven.** 126 tests cover shell classification, the metrics, all
+  three adapters, redaction, consent, encryption and the CLI end to end. The SVG
+  renderers, `install-hook` and the screenshot tooling are exercised by hand only.
 - Redaction adds a full decode/regex pass per line, so archiving is meaningfully slower
   than a straight copy.
 - Format drift is guaranteed. Unrecognised record types are counted and reported rather
@@ -320,10 +321,32 @@ Regenerate the screenshots with:
 python3 tools/screenshot.py /tmp/retro-demo
 ```
 
+## Tests
+
+```bash
+python3 tests/run.py            # everything
+python3 tests/run.py -v         # verbose
+python3 tests/run.py metrics    # one file
+```
+
+126 tests, standard library only, no network and no fixtures from a real machine.
+Every store path is redirected, so the suite never reads `~/.claude`, `~/.codex` or
+Cursor state, and one test asserts that the checkout's own archive is untouched by
+a test run.
+
+Most of them are regressions. Each one is a bug that shipped and was caught by eye:
+`>/dev/null` counted as a file edit, 52 Codex tool calls dropped silently, Codex
+prompts buried inside IDE context blocks, cumulative token counts summed instead of
+taken, Cursor edit targets read from a field that does not exist, and a coverage
+denominator that reported 107%.
+
+`ResourceWarning` is promoted to an error, because a leaked handle per session is
+invisible in a unit test and becomes hundreds of open descriptors on a real corpus.
+
 ## Status
 
-Working prototype, built and validated against a real 162-session corpus across three
-agents. Not packaged, not tested, not hardened. Read Gaps before trusting a number.
+Working prototype, built and validated against a real 163-session corpus across three
+agents. Not packaged, not hardened. Read Gaps before trusting a number.
 
 ## License
 
