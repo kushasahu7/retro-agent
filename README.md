@@ -221,6 +221,13 @@ pipx install retro-agent && retro init
 pip install retro-agent && retro init
 ```
 
+Not on PyPI yet, so until it is, install straight from the repository. Same result,
+same `retro` command:
+
+```bash
+pipx install git+https://github.com/kushasahu7/retro-agent && retro init
+```
+
 `retro init` records consent, archives every session it can find, parses them, and
 prints the scorecard. It asks before storing anything; `--yes` skips the prompt.
 
